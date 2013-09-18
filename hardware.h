@@ -78,7 +78,7 @@ extern CLOCK_TIME clock;  /* system clock in ms */
 
 
 /* A keyboard interrupt, issued by the hardware when a requested keyboard read
-   operation has completed, is interrupt 2. The PID of process that requested the 
+   operation has completed, is interrupt 3. The PID of process that requested the 
    keyboar read is placed in R1 by the hardware */
 
 #define KEYBOARD_INTERRUPT 3  /* occurs when requested keyboard buffer is available */
