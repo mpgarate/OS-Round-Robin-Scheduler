@@ -90,16 +90,45 @@ PID_type dequeue_ready_process()
   }
 }
 
+/* These handlers are run upon the relevant interrupt  */
+
+void handle_disk_read(pid, size) {
+  printf("handling disk read\n");
+  disk_read_req(PID_type pid, int size)
+}
+void handle_disk_write() {
+  printf("handling disk write\n");
+}
+void handle_keyboard_read() {
+  printf("handling keyboad read\n");
+}
+void handle_fork_program() {
+  printf("handling fork program\n");
+}
+void handle_end_program() {
+  printf("handling end program\n");
+}
 
 /* This procedure is automatically called when the 
    (simulated) machine boots up */
 
+
 void initialize_kernel()
 {
+  printf("test\n");
   // Put any initialization code you want here.
   // Remember, the process 0 will automatically be
   // executed after initialization (and current_pid
   // will automatically be set to 0), 
   // so the your process table should reflect that fact.
+
+
+  INTERRUPT_TABLE[DISK_READ] = handle_disk_read; 
+  INTERRUPT_TABLE[DISK_WRITE] = handle_disk_write;
+  INTERRUPT_TABLE[KEYBOARD_READ] = handle_keyboard_read;
+  INTERRUPT_TABLE[FORK_PROGRAM] = handle_fork_program;
+  INTERRUPT_TABLE[END_PROGRAM] = handle_end_program;
+
+
 }
 
