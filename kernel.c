@@ -92,21 +92,23 @@ PID_type dequeue_ready_process()
 
 /* These handlers are run upon the relevant interrupt  */
 
-void handle_disk_read(pid, size) {
-  printf("handling disk read\n");
-  disk_read_req(PID_type pid, int size)
+void handle_disk_read() {
+  SAY("handling disk read\n");
+  disk_read_req(R1, R2);
+  SAY("I should pick a process to run next. Exiting.\n");
+  exit(1);
 }
 void handle_disk_write() {
-  printf("handling disk write\n");
+  SAY("handling disk write\n");
 }
 void handle_keyboard_read() {
-  printf("handling keyboad read\n");
+  SAY("handling keyboad read\n");
 }
 void handle_fork_program() {
-  printf("handling fork program\n");
+  SAY("handling fork program\n");
 }
 void handle_end_program() {
-  printf("handling end program\n");
+  SAY("handling end program\n");
 }
 
 /* This procedure is automatically called when the 
@@ -115,14 +117,16 @@ void handle_end_program() {
 
 void initialize_kernel()
 {
-  printf("test\n");
+  SAY("test\n");
   // Put any initialization code you want here.
   // Remember, the process 0 will automatically be
   // executed after initialization (and current_pid
   // will automatically be set to 0), 
   // so the your process table should reflect that fact.
 
+  SAY("hello world\n");
 
+  SAY1("%i\n",R1); 
   INTERRUPT_TABLE[DISK_READ] = handle_disk_read; 
   INTERRUPT_TABLE[DISK_WRITE] = handle_disk_write;
   INTERRUPT_TABLE[KEYBOARD_READ] = handle_keyboard_read;
