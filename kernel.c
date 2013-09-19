@@ -13,7 +13,7 @@
 #define SAY(fmt)        SAY0(fmt)
 #define SAY0(fmt)         {if(DEBUG){printf(fmt); fflush(stdout);}}
 #define SAY1(fmt,parm1)     {if(DEBUG){printf(fmt,parm1); fflush(stdout);}}
-#define SAY2(fmt,parm1,parm2)   {if(DEBUG){printf(fmt,parm1,parm2); fflush(stdout);}
+#define SAY2(fmt,parm1,parm2)   {if(DEBUG){printf(fmt,parm1,parm2); fflush(stdout);}}
 
 /* You may use the definitions below, if you are so inclined, to
    define the process table entries. Feel free to use your own
@@ -100,6 +100,7 @@ PID_type dequeue_ready_process()
 
 /* These handlers are run upon the relevant interrupt  */
 
+
 void handle_disk_read() {
   SAY("handling disk read\n");
   disk_read_req(R1, R2);
@@ -107,6 +108,9 @@ void handle_disk_read() {
   exit(1);
 }
 void handle_disk_write() {
+  /* This is non-blocking */
+  /* Process continues while data is being 
+     written to the disk */
   SAY("handling disk write\n");
 }
 void handle_keyboard_read() {
@@ -114,11 +118,34 @@ void handle_keyboard_read() {
 }
 void handle_fork_program() {
   SAY("handling fork program\n");
+  fork(R2);
+  SAY("forked!\n");
 }
 void handle_end_program() {
   SAY("handling end program\n");
 }
 
+void handle_trap(){
+  SAY2("In handle_trap. Clock: %d trap: %d \n",clock,R1);
+  switch(R1){
+    case DISK_READ:
+      handle_disk_read(); 
+      break;
+    case DISK_WRITE:
+      handle_disk_write();
+      break;
+    case KEYBOARD_READ:
+      handle_keyboard_read();
+      break;
+    case FORK_PROGRAM:
+      handle_fork_program();
+      break;
+    case END_PROGRAM:
+      handle_end_program();
+      break;
+  }
+  exit(0);
+}
 /* This procedure is automatically called when the 
    (simulated) machine boots up */
 
@@ -131,18 +158,22 @@ void initialize_kernel()
   // will automatically be set to 0), 
   // so the your process table should reflect that fact.
 
+
+  INTERRUPT_TABLE[TRAP] = handle_trap;
+  /*
+  INTERRUPT_TABLE[DISK_READ] = handle_disk_read; 
+  INTERRUPT_TABLE[DISK_WRITE] = handle_disk_write;
+  INTERRUPT_TABLE[KEYBOARD_READ] = handle_keyboard_read;
+  INTERRUPT_TABLE[FORK_PROGRAM] = handle_fork_program;
+  INTERRUPT_TABLE[END_PROGRAM] = handle_end_program;
+*/
+
   /* Add the initial process to the table */
   PROCESS_TABLE_ENTRY init_process;
   init_process.state = RUNNING;
   init_process.CPU_time_used = 0; 
   init_process.quantum_start_time = clock;
   process_table[0] = init_process;
-
-  INTERRUPT_TABLE[DISK_READ] = handle_disk_read; 
-  INTERRUPT_TABLE[DISK_WRITE] = handle_disk_write;
-  INTERRUPT_TABLE[KEYBOARD_READ] = handle_keyboard_read;
-  INTERRUPT_TABLE[FORK_PROGRAM] = handle_fork_program;
-  INTERRUPT_TABLE[END_PROGRAM] = handle_end_program;
 
 }
 
