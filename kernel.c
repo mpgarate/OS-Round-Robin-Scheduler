@@ -6,6 +6,14 @@
 #include "kernel.h"
 
 
+/* Set this to 1 to print out debug statements */
+#define DEBUG 1
+
+/* Macro to print debug statements and flush stdout */
+#define SAY(fmt)        SAY0(fmt)
+#define SAY0(fmt)         {if(DEBUG){printf(fmt); fflush(stdout);}}
+#define SAY1(fmt,parm1)     {if(DEBUG){printf(fmt,parm1); fflush(stdout);}}
+#define SAY2(fmt,parm1,parm2)   {if(DEBUG){printf(fmt,parm1,parm2); fflush(stdout);}
 
 /* You may use the definitions below, if you are so inclined, to
    define the process table entries. Feel free to use your own
@@ -95,7 +103,7 @@ PID_type dequeue_ready_process()
 void handle_disk_read() {
   SAY("handling disk read\n");
   disk_read_req(R1, R2);
-  SAY("I should pick a process to run next. Exiting.\n");
+  SAY("I should launch a process, but I'm exiting.\n");
   exit(1);
 }
 void handle_disk_write() {
@@ -114,25 +122,27 @@ void handle_end_program() {
 /* This procedure is automatically called when the 
    (simulated) machine boots up */
 
-
 void initialize_kernel()
 {
-  SAY("test\n");
+  SAY("Initializing Kernel\n");
   // Put any initialization code you want here.
   // Remember, the process 0 will automatically be
   // executed after initialization (and current_pid
   // will automatically be set to 0), 
   // so the your process table should reflect that fact.
 
-  SAY("hello world\n");
+  /* Add the initial process to the table */
+  PROCESS_TABLE_ENTRY init_process;
+  init_process.state = RUNNING;
+  init_process.CPU_time_used = 0; 
+  init_process.quantum_start_time = clock;
+  process_table[0] = init_process;
 
-  SAY1("%i\n",R1); 
   INTERRUPT_TABLE[DISK_READ] = handle_disk_read; 
   INTERRUPT_TABLE[DISK_WRITE] = handle_disk_write;
   INTERRUPT_TABLE[KEYBOARD_READ] = handle_keyboard_read;
   INTERRUPT_TABLE[FORK_PROGRAM] = handle_fork_program;
   INTERRUPT_TABLE[END_PROGRAM] = handle_end_program;
-
 
 }
 
