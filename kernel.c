@@ -98,14 +98,24 @@ PID_type dequeue_ready_process()
   }
 }
 
-/* These handlers are run upon the relevant interrupt  */
+/* */
+void create_process_entry(){
+  SAY2("Time %d: Creating process entry for pid %d\n",clock,R2);
+  PROCESS_TABLE_ENTRY new_process;
+  new_process.state = READY;
+  new_process.CPU_time_used = 0; 
+  new_process.quantum_start_time = 0;
+  process_table[current_pid] = new_process;
+  queue_ready_process(current_pid);
+}
 
+/* These handlers are run upon the relevant interrupt  */
 
 void handle_disk_read() {
   SAY("handling disk read\n");
   disk_read_req(R1, R2);
   SAY("I should launch a process, but I'm exiting.\n");
-  exit(1);
+  dequeue_ready_process();
 }
 void handle_disk_write() {
   /* This is non-blocking */
@@ -118,11 +128,16 @@ void handle_keyboard_read() {
 }
 void handle_fork_program() {
   SAY("handling fork program\n");
-  fork(R2);
-  SAY("forked!\n");
+  if (fork(R2) == 0){
+    /* Child Process */
+    current_pid += 1;
+    create_process_entry();
+  }
 }
 void handle_end_program() {
   SAY("handling end program\n");
+  SAY2("Process %d exits. Total CPU time = %d\n", current_pid, process_table[current_pid].CPU_time_used);
+  exit(0);
 }
 
 void handle_trap(){
@@ -144,7 +159,18 @@ void handle_trap(){
       handle_end_program();
       break;
   }
-  exit(0);
+}
+
+void handle_clock_interrupt(){
+  SAY("Handling clock interrupt\n");
+}
+
+void handle_disk_interrupt(){
+  SAY("Handling disk interrupt\n");
+}
+
+void handle_keyboard_interrupt(){
+  SAY("Handling keyboard interrupt\n");
 }
 /* This procedure is automatically called when the 
    (simulated) machine boots up */
@@ -158,8 +184,13 @@ void initialize_kernel()
   // will automatically be set to 0), 
   // so the your process table should reflect that fact.
 
+  /* Add the initial process to the table */
+  create_process_entry();
 
   INTERRUPT_TABLE[TRAP] = handle_trap;
+  INTERRUPT_TABLE[CLOCK_INTERRUPT] = handle_clock_interrupt;
+  INTERRUPT_TABLE[DISK_INTERRUPT] = handle_disk_interrupt;
+  INTERRUPT_TABLE[KEYBOARD_INTERRUPT] = handle_keyboard_interrupt;
   /*
   INTERRUPT_TABLE[DISK_READ] = handle_disk_read; 
   INTERRUPT_TABLE[DISK_WRITE] = handle_disk_write;
@@ -167,13 +198,6 @@ void initialize_kernel()
   INTERRUPT_TABLE[FORK_PROGRAM] = handle_fork_program;
   INTERRUPT_TABLE[END_PROGRAM] = handle_end_program;
 */
-
-  /* Add the initial process to the table */
-  PROCESS_TABLE_ENTRY init_process;
-  init_process.state = RUNNING;
-  init_process.CPU_time_used = 0; 
-  init_process.quantum_start_time = clock;
-  process_table[0] = init_process;
 
 }
 
