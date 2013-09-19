@@ -114,7 +114,6 @@ void create_process_entry(){
 void handle_disk_read() {
   SAY("handling disk read\n");
   disk_read_req(R1, R2);
-  SAY("I should launch a process, but I'm exiting.\n");
   dequeue_ready_process();
 }
 void handle_disk_write() {
@@ -125,6 +124,7 @@ void handle_disk_write() {
 }
 void handle_keyboard_read() {
   SAY("handling keyboad read\n");
+  keyboard_read_req(current_pid);
 }
 void handle_fork_program() {
   SAY("handling fork program\n");
@@ -132,6 +132,7 @@ void handle_fork_program() {
     /* Child Process */
     current_pid += 1;
     create_process_entry();
+    queue_ready_process(current_pid);
   }
 }
 void handle_end_program() {
@@ -163,6 +164,9 @@ void handle_trap(){
 
 void handle_clock_interrupt(){
   SAY("Handling clock interrupt\n");
+  PROCESS_TABLE_ENTRY current_process = process_table[current_pid];
+  current_process.CPU_time_used = clock - current_process.quantum_start_time*QUANTUM;
+  SAY2("PID %d has used %d time\n",current_pid,current_process.CPU_time_used);
 }
 
 void handle_disk_interrupt(){
@@ -191,13 +195,6 @@ void initialize_kernel()
   INTERRUPT_TABLE[CLOCK_INTERRUPT] = handle_clock_interrupt;
   INTERRUPT_TABLE[DISK_INTERRUPT] = handle_disk_interrupt;
   INTERRUPT_TABLE[KEYBOARD_INTERRUPT] = handle_keyboard_interrupt;
-  /*
-  INTERRUPT_TABLE[DISK_READ] = handle_disk_read; 
-  INTERRUPT_TABLE[DISK_WRITE] = handle_disk_write;
-  INTERRUPT_TABLE[KEYBOARD_READ] = handle_keyboard_read;
-  INTERRUPT_TABLE[FORK_PROGRAM] = handle_fork_program;
-  INTERRUPT_TABLE[END_PROGRAM] = handle_end_program;
-*/
 
 }
 
