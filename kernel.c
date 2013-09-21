@@ -98,7 +98,37 @@ PID_type dequeue_ready_process()
   }
 }
 
-/* */
+void print_process_entry(i){
+  SAY1("--- %d        ",i); // PID
+  /* Print state */
+  switch(process_table[i].state){
+    case RUNNING:
+      SAY("RNING     ");
+      break;
+    case READY:
+      SAY("READY     ");
+      break;
+    case BLOCKED:
+      SAY("BLOCK     ");
+      break;
+    case UNINITIALIZED:
+      SAY("UNINI     ");
+      break;
+  }
+  SAY1("%d                   ",process_table[i].CPU_time_used);
+  SAY1("%d     ",process_table[i].quantum_start_time);
+  SAY("\n");
+}
+
+void print_process_table(){
+  SAY("------------------- Printing Process Table -------------------\n");
+  SAY("--- PID     State     CPU_time_used     quantum_start_time ---\n");
+  int i = 0;
+  for(i = 0; i < MAX_NUMBER_OF_PROCESSES-1; i++){
+    print_process_entry(i);
+  }
+  SAY("------------------- End Process Table Print ------------------\n");
+}
 void create_process_entry(new_process_pid){
   SAY2("Time %d: Creating process entry for pid %d\n",clock,new_process_pid);
   PROCESS_TABLE_ENTRY new_process;
@@ -106,14 +136,17 @@ void create_process_entry(new_process_pid){
   new_process.CPU_time_used = 0; 
   new_process.quantum_start_time = clock;
   process_table[current_pid] = new_process;
-  queue_ready_process(new_process_pid);
   active_processes++;
+  queue_ready_process(new_process_pid);
+  print_process_table();
 }
 
 void run_next_process(){
   current_pid = dequeue_ready_process();
-  process_table[current_pid].quantum_start_time = clock;
-  SAY1("Now running PID %d\n", current_pid);
+  if (current_pid != IDLE_PROCESS){
+    process_table[current_pid].quantum_start_time = clock;
+    SAY2("Time: %d Process %d runs\n",clock, current_pid);
+  }
 }
 
 /* These handlers are run upon the relevant interrupt  */
@@ -121,6 +154,7 @@ void run_next_process(){
 void handle_disk_read() {
   SAY("handling disk read\n");
   disk_read_req(R1, R2);
+  process_table[current_pid].state = BLOCKED;
   run_next_process();
 }
 void handle_disk_write() {
@@ -134,9 +168,8 @@ void handle_keyboard_read() {
   keyboard_read_req(current_pid);
 }
 void handle_fork_program() {
-  SAY("handling fork program\n");
+  //SAY("handling fork program\n");
   create_process_entry(R2);
-  queue_ready_process(R2);
 }
 void handle_end_program() {
   SAY("handling end program\n");
@@ -174,6 +207,7 @@ void handle_trap(){
 
 void handle_clock_interrupt(){
   SAY1("Time: %d - Handling clock interrupt\n", clock);
+  //if (current_pid == -1) exit(1);
 
     CLOCK_TIME quantum_time_used = clock - process_table[current_pid].quantum_start_time;
 
@@ -183,13 +217,14 @@ void handle_clock_interrupt(){
     process_table[current_pid].state = READY;
     process_table[current_pid].quantum_start_time = 0;
     process_table[current_pid].CPU_time_used += quantum_time_used;
-    run_next_process();
     queue_ready_process(current_pid);
+    run_next_process();
   }
 }
 
 void handle_disk_interrupt(){
   SAY("Handling disk interrupt\n");
+
 }
 
 void handle_keyboard_interrupt(){
@@ -200,7 +235,6 @@ void handle_keyboard_interrupt(){
 
 void initialize_kernel()
 {
-  SAY("Initializing Kernel\n");
   // Put any initialization code you want here.
   // Remember, the process 0 will automatically be
   // executed after initialization (and current_pid
