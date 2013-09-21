@@ -147,15 +147,15 @@ void run_next_process(){
     printf("Time %d: Process %d runs\n",clock, current_pid);
   }
   else{
-    exit(0);
+    printf("Time %d: Processor is idle\n",clock);fflush(stdout);
   }
 }
 
 /* These handlers are run upon the relevant interrupt  */
 
 void handle_disk_read() {
-  SAY("handling disk read\n");
-  disk_read_req(R1, R2);
+  SAY2("PID %d handling disk read of size: %d\n",R2,current_pid);
+  disk_read_req(current_pid, R2);
   process_table[current_pid].state = BLOCKED;
   run_next_process();
 }
@@ -216,7 +216,10 @@ void handle_clock_interrupt(){
     CLOCK_TIME quantum_time_used = clock - process_table[current_pid].quantum_start_time;
 
   /* Check if the current process has used up its QUANTUM */
-  if (quantum_time_used >= QUANTUM && current_pid !=-1 ){
+  if(current_pid ==-1){
+    return;
+  }
+  if (quantum_time_used >= QUANTUM){
     SAY2("PID %d has run for %d. That's enough. \n",current_pid, quantum_time_used);
     process_table[current_pid].state = READY;
     process_table[current_pid].quantum_start_time = 0;
@@ -227,12 +230,20 @@ void handle_clock_interrupt(){
 }
 
 void handle_disk_interrupt(){
-  SAY("Handling disk interrupt\n");
-
+  if(current_pid != -1){
+    process_table[current_pid].state = READY;
+    queue_ready_process(current_pid);
+  }
+  current_pid = R1;
+  printf("Time %d: Handled DISK_INTERRUPT for pid %d \n", clock, current_pid);
+  process_table[current_pid].state = READY;
+  queue_ready_process(current_pid);
+  run_next_process();
 }
 
 void handle_keyboard_interrupt(){
   SAY("Handling keyboard interrupt\n");
+  process_table[current_pid].state = READY;
 }
 /* This procedure is automatically called when the 
    (simulated) machine boots up */
