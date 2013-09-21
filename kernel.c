@@ -36,7 +36,7 @@ extern PROCESS_TABLE_ENTRY process_table[];
 #define QUANTUM 40
 
 PROCESS_TABLE_ENTRY process_table[MAX_NUMBER_OF_PROCESSES];
-
+int active_processes = 0;
 
 /* You may use this code for maintaining a queue of
    ready processes. It's simply a linked list structure
@@ -99,14 +99,20 @@ PID_type dequeue_ready_process()
 }
 
 /* */
-void create_process_entry(){
-  SAY2("Time %d: Creating process entry for pid %d\n",clock,R2);
+void create_process_entry(new_process_pid){
+  SAY2("Time %d: Creating process entry for pid %d\n",clock,new_process_pid);
   PROCESS_TABLE_ENTRY new_process;
   new_process.state = READY;
   new_process.CPU_time_used = 0; 
-  new_process.quantum_start_time = 0;
+  new_process.quantum_start_time = clock;
   process_table[current_pid] = new_process;
-  queue_ready_process(current_pid);
+  queue_ready_process(new_process_pid);
+  active_processes++;
+}
+
+void run_next_process(){
+  current_pid = dequeue_ready_process();
+  SAY1("Now running PID %d\n", current_pid);
 }
 
 /* These handlers are run upon the relevant interrupt  */
@@ -114,7 +120,7 @@ void create_process_entry(){
 void handle_disk_read() {
   SAY("handling disk read\n");
   disk_read_req(R1, R2);
-  dequeue_ready_process();
+  run_next_process();
 }
 void handle_disk_write() {
   /* This is non-blocking */
@@ -128,35 +134,38 @@ void handle_keyboard_read() {
 }
 void handle_fork_program() {
   SAY("handling fork program\n");
-  if (fork(R2) == 0){
-    /* Child Process */
-    current_pid += 1;
-    create_process_entry();
-    queue_ready_process(current_pid);
-  }
+  create_process_entry(R2);
+  queue_ready_process(R2);
 }
 void handle_end_program() {
   SAY("handling end program\n");
   SAY2("Process %d exits. Total CPU time = %d\n", current_pid, process_table[current_pid].CPU_time_used);
-  exit(0);
+  process_table[current_pid].state = UNINITIALIZED;
+  active_processes--;
+  if (!active_processes) {
+    exit(0);
+  }
+  else{
+    run_next_process();
+  }
 }
 
 void handle_trap(){
   SAY2("In handle_trap. Clock: %d trap: %d \n",clock,R1);
   switch(R1){
-    case DISK_READ:
+    case DISK_READ:         // 0
       handle_disk_read(); 
       break;
-    case DISK_WRITE:
+    case DISK_WRITE:        // 1
       handle_disk_write();
       break;
-    case KEYBOARD_READ:
+    case KEYBOARD_READ:     // 2
       handle_keyboard_read();
       break;
-    case FORK_PROGRAM:
+    case FORK_PROGRAM:      // 3
       handle_fork_program();
       break;
-    case END_PROGRAM:
+    case END_PROGRAM:       // 4
       handle_end_program();
       break;
   }
@@ -164,9 +173,17 @@ void handle_trap(){
 
 void handle_clock_interrupt(){
   SAY("Handling clock interrupt\n");
+  /* Update the running time of the current process */
   PROCESS_TABLE_ENTRY current_process = process_table[current_pid];
-  current_process.CPU_time_used = clock - current_process.quantum_start_time*QUANTUM;
-  SAY2("PID %d has used %d time\n",current_pid,current_process.CPU_time_used);
+  current_process.CPU_time_used += clock - current_process.quantum_start_time;
+
+  /* Check if the current process has used up its QUANTUM */
+  if (current_process.CPU_time_used >= QUANTUM){
+    SAY2("PID %d has run for %d. That's enough. \n",current_pid, current_process.CPU_time_used);
+    process_table[current_pid].state = READY;
+    queue_ready_process(current_pid);
+    run_next_process();
+  }
 }
 
 void handle_disk_interrupt(){
@@ -189,7 +206,15 @@ void initialize_kernel()
   // so the your process table should reflect that fact.
 
   /* Add the initial process to the table */
-  create_process_entry();
+  process_table[0].state = RUNNING;
+  process_table[0].CPU_time_used = 0;
+  active_processes++;
+
+  /* initialize the process table */
+  int i = 1;
+  for(i = 1; i < MAX_NUMBER_OF_PROCESSES-1; i++){
+    process_table[i].state = UNINITIALIZED;
+  }
 
   INTERRUPT_TABLE[TRAP] = handle_trap;
   INTERRUPT_TABLE[CLOCK_INTERRUPT] = handle_clock_interrupt;
