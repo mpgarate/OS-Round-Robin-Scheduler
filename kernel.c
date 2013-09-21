@@ -112,6 +112,7 @@ void create_process_entry(new_process_pid){
 
 void run_next_process(){
   current_pid = dequeue_ready_process();
+  process_table[current_pid].quantum_start_time = clock;
   SAY1("Now running PID %d\n", current_pid);
 }
 
@@ -172,17 +173,18 @@ void handle_trap(){
 }
 
 void handle_clock_interrupt(){
-  SAY("Handling clock interrupt\n");
-  /* Update the running time of the current process */
-  PROCESS_TABLE_ENTRY current_process = process_table[current_pid];
-  current_process.CPU_time_used += clock - current_process.quantum_start_time;
+  SAY1("Time: %d - Handling clock interrupt\n", clock);
+
+    CLOCK_TIME quantum_time_used = clock - process_table[current_pid].quantum_start_time;
 
   /* Check if the current process has used up its QUANTUM */
-  if (current_process.CPU_time_used >= QUANTUM){
-    SAY2("PID %d has run for %d. That's enough. \n",current_pid, current_process.CPU_time_used);
+  if (quantum_time_used >= QUANTUM){
+    SAY2("PID %d has run for %d. That's enough. \n",current_pid, quantum_time_used);
     process_table[current_pid].state = READY;
-    queue_ready_process(current_pid);
+    process_table[current_pid].quantum_start_time = 0;
+    process_table[current_pid].CPU_time_used += quantum_time_used;
     run_next_process();
+    queue_ready_process(current_pid);
   }
 }
 
