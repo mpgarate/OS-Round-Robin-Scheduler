@@ -7,7 +7,7 @@
 
 
 /* Set this to 1 to print out debug statements */
-#define DEBUG 1
+#define DEBUG 0
 
 /* Macro to print debug statements and flush stdout */
 #define SAY(fmt)        SAY0(fmt)
@@ -132,20 +132,22 @@ void print_process_table(){
   SAY("------------------- End Process Table Print ------------------\n");
 }
 void create_process_entry(new_process_pid){
-  SAY2("Time %d: Creating process entry for pid %d\n",clock,new_process_pid);
+  printf("Time %d: Creating process entry for pid %d\n",clock,new_process_pid);
   process_table[new_process_pid].state = READY;
   process_table[new_process_pid].CPU_time_used = 0; 
   process_table[new_process_pid].quantum_start_time = clock;
   active_processes++;
   queue_ready_process(new_process_pid);
-  print_process_table();
 }
 
 void run_next_process(){
   current_pid = dequeue_ready_process();
   if (current_pid != IDLE_PROCESS){
     process_table[current_pid].quantum_start_time = clock;
-    SAY2("Time: %d Process %d runs\n",clock, current_pid);
+    printf("Time %d: Process %d runs\n",clock, current_pid);
+  }
+  else{
+    exit(0);
   }
 }
 
@@ -161,11 +163,13 @@ void handle_disk_write() {
   /* This is non-blocking */
   /* Process continues while data is being 
      written to the disk */
-  SAY("handling disk write\n");
+  printf("Time %d: Process %d issues disk write request\n", clock, current_pid);
 }
 void handle_keyboard_read() {
   SAY("handling keyboad read\n");
   keyboard_read_req(current_pid);
+  process_table[current_pid].state = BLOCKED;
+  run_next_process();
 }
 void handle_fork_program() {
   //SAY("handling fork program\n");
@@ -173,7 +177,7 @@ void handle_fork_program() {
 }
 void handle_end_program() {
   SAY("handling end program\n");
-  SAY2("Process %d exits. Total CPU time = %d\n", current_pid, process_table[current_pid].CPU_time_used);
+  printf("Time %d: Process %d exits. Total CPU time = %d\n", clock, current_pid, process_table[current_pid].CPU_time_used);
   process_table[current_pid].state = UNINITIALIZED;
   active_processes--;
   if (!active_processes) {
@@ -185,7 +189,7 @@ void handle_end_program() {
 }
 
 void handle_trap(){
-  SAY2("In handle_trap. Clock: %d trap: %d \n",clock,R1);
+  printf("IN HANDLE_TRAP. Clock = %d, trap = %d \n",clock,R1);
   switch(R1){
     case DISK_READ:         // 0
       handle_disk_read(); 
@@ -206,13 +210,13 @@ void handle_trap(){
 }
 
 void handle_clock_interrupt(){
-  SAY1("Time: %d - Handling clock interrupt\n", clock);
+  //SAY1("Time: %d - Handling clock interrupt\n", clock);
   //if (current_pid == -1) exit(1);
 
     CLOCK_TIME quantum_time_used = clock - process_table[current_pid].quantum_start_time;
 
   /* Check if the current process has used up its QUANTUM */
-  if (quantum_time_used >= QUANTUM){
+  if (quantum_time_used >= QUANTUM && current_pid !=-1 ){
     SAY2("PID %d has run for %d. That's enough. \n",current_pid, quantum_time_used);
     process_table[current_pid].state = READY;
     process_table[current_pid].quantum_start_time = 0;
