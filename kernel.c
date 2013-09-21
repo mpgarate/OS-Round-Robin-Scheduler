@@ -140,15 +140,32 @@ void create_process_entry(new_process_pid){
   queue_ready_process(new_process_pid);
 }
 
+/* Update the process table for a running process */
+void run_process(pid){
+  process_table[pid].state = RUNNING;
+  process_table[pid].quantum_start_time = clock;
+  printf("Time %d: Process %d runs\n",clock, current_pid);
+}
+
+/* Run the next process in the queue */
 void run_next_process(){
   current_pid = dequeue_ready_process();
   if (current_pid != IDLE_PROCESS){
-    process_table[current_pid].quantum_start_time = clock;
-    printf("Time %d: Process %d runs\n",clock, current_pid);
+    run_process(current_pid);
   }
   else{
     printf("Time %d: Processor is idle\n",clock);fflush(stdout);
   }
+}
+
+void run_interrupting_process(){
+  if(current_pid != IDLE_PROCESS){
+    process_table[current_pid].state = READY;
+    process_table[current_pid].quantum_start_time = 0;
+    queue_ready_process(current_pid);
+  }
+  current_pid = R1;
+  run_process(R1);
 }
 
 /* These handlers are run upon the relevant interrupt  */
@@ -157,6 +174,7 @@ void handle_disk_read() {
   SAY2("PID %d handling disk read of size: %d\n",R2,current_pid);
   disk_read_req(current_pid, R2);
   process_table[current_pid].state = BLOCKED;
+  process_table[current_pid].quantum_start_time = 0;
   run_next_process();
 }
 void handle_disk_write() {
@@ -169,6 +187,7 @@ void handle_keyboard_read() {
   SAY("handling keyboad read\n");
   keyboard_read_req(current_pid);
   process_table[current_pid].state = BLOCKED;
+  process_table[current_pid].quantum_start_time = 0;
   run_next_process();
 }
 void handle_fork_program() {
@@ -181,6 +200,7 @@ void handle_end_program() {
   process_table[current_pid].state = UNINITIALIZED;
   active_processes--;
   if (!active_processes) {
+    printf("-- No more processes to execute --");
     exit(0);
   }
   else{
@@ -211,11 +231,9 @@ void handle_trap(){
 
 void handle_clock_interrupt(){
   //SAY1("Time: %d - Handling clock interrupt\n", clock);
-  //if (current_pid == -1) exit(1);
-
     CLOCK_TIME quantum_time_used = clock - process_table[current_pid].quantum_start_time;
-
   /* Check if the current process has used up its QUANTUM */
+    print_process_table();
   if(current_pid ==-1){
     return;
   }
@@ -230,20 +248,13 @@ void handle_clock_interrupt(){
 }
 
 void handle_disk_interrupt(){
-  if(current_pid != -1){
-    process_table[current_pid].state = READY;
-    queue_ready_process(current_pid);
-  }
-  current_pid = R1;
-  printf("Time %d: Handled DISK_INTERRUPT for pid %d \n", clock, current_pid);
-  process_table[current_pid].state = READY;
-  queue_ready_process(current_pid);
-  run_next_process();
+  printf("Time %d: Handled DISK_INTERRUPT for pid %d \n", clock, R1);
+  run_interrupting_process();
 }
 
 void handle_keyboard_interrupt(){
-  SAY("Handling keyboard interrupt\n");
-  process_table[current_pid].state = READY;
+  printf("Time %d: Handled KEYBOARD_INTERRUPT for pid %d \n", clock, R1);
+  run_interrupting_process();
 }
 /* This procedure is automatically called when the 
    (simulated) machine boots up */
@@ -259,6 +270,7 @@ void initialize_kernel()
   /* Add the initial process to the table */
   process_table[0].state = RUNNING;
   process_table[0].CPU_time_used = 0;
+  process_table[0].quantum_start_time = clock;
   active_processes++;
 
   /* initialize the process table */
