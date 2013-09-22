@@ -98,6 +98,8 @@ PID_type dequeue_ready_process()
   }
 }
 
+/*** Printing functionality for debugging ***/
+
 void print_process_entry(i){
   SAY1("--- %d       ",i); // PID
   /* Print state */
@@ -131,6 +133,7 @@ void print_process_table(){
   SAY1("--- Active processes: %d\n", active_processes);
   SAY("------------------- End Process Table Print ------------------\n");
 }
+
 void create_process_entry(new_process_pid){
   printf("Time %d: Creating process entry for pid %d\n",clock,new_process_pid);
   process_table[new_process_pid].state = READY;
@@ -153,45 +156,47 @@ void update_CPU_time_used(pid){
 
 /* Run the next process in the queue */
 void run_next_process(){
+  PID_type prev_pid = current_pid;
   current_pid = dequeue_ready_process();
-  if (current_pid != IDLE_PROCESS){
-    run_process(current_pid);
+  if (current_pid == IDLE_PROCESS){
+    if (prev_pid != IDLE_PROCESS){
+      printf("Time %d: Processor is idle\n",clock);fflush(stdout);
+    }
   }
-  else{
-    printf("Time %d: Processor is idle\n",clock);fflush(stdout);
+  else {
+    run_process(current_pid);
   }
 }
 
 /* These handlers are run upon the relevant interrupt  */
 
-void handle_disk_read() {
-  SAY2("PID %d handling disk read of size: %d\n",R2,current_pid);
-  disk_read_req(current_pid, R2);
+void block_current_process(){
   update_CPU_time_used(current_pid);
   process_table[current_pid].state = BLOCKED;
   process_table[current_pid].quantum_start_time = 0;
+}
+
+void handle_disk_read() {
+  SAY2("PID %d handling disk read of size: %d\n",R2,current_pid);
+  disk_read_req(current_pid, R2);
+  block_current_process();
   run_next_process();
 }
 
 void handle_disk_write() {
   /* This is non-blocking */
-  /* Process continues while data is being 
-     written to the disk */
-  //printf("Time %d: Process %d issues disk write request\n", clock, current_pid);
   disk_write_req(current_pid);
 }
 
 void handle_keyboard_read() {
   SAY("handling keyboad read\n");
   keyboard_read_req(current_pid);
-  update_CPU_time_used(current_pid);
-  process_table[current_pid].state = BLOCKED;
-  process_table[current_pid].quantum_start_time = 0;
+  block_current_process();
   run_next_process();
 }
 
 void handle_fork_program() {
-  //SAY("handling fork program\n");
+  SAY("handling fork program\n");
   create_process_entry(R2);
 }
 
@@ -202,7 +207,7 @@ void handle_end_program() {
   process_table[current_pid].state = UNINITIALIZED;
   active_processes--;
   if (!active_processes) {
-    printf("-- No more processes to execute --");
+    printf("-- No more processes to execute --\n");
     exit(0);
   }
   else{
@@ -211,7 +216,7 @@ void handle_end_program() {
 }
 
 void handle_trap(){
-  printf("IN HANDLE_TRAP. Clock = %d, trap = %d \n",clock,R1);
+  printf("IN HANDLE_TRAP. Clock = %d, trap = %d\n",clock,R1);
   switch(R1){
     case DISK_READ:         // 0
       handle_disk_read(); 
@@ -238,6 +243,7 @@ void handle_clock_interrupt(){
   /* Check if the current process has used up its QUANTUM */
     print_process_table();
   if(current_pid ==-1){
+    run_next_process();
     return;
   }
   if (quantum_time_used >= QUANTUM){
@@ -252,8 +258,10 @@ void handle_clock_interrupt(){
 
 void update_interrupting_process(){
     if(current_pid == IDLE_PROCESS){
-      current_pid = R1;
-      run_process(current_pid);
+      /* current_pid = R1;
+      run_process(current_pid); */
+
+      queue_ready_process(R1);
     }
     else{
       process_table[R1].state = READY;
@@ -263,12 +271,12 @@ void update_interrupting_process(){
 }
 
 void handle_disk_interrupt(){
-  printf("Time %d: Handled DISK_INTERRUPT for pid %d \n", clock, R1); fflush(stdout);
+  printf("Time %d: Handled DISK_INTERRUPT for pid %d\n", clock, R1); fflush(stdout);
   update_interrupting_process();
 }
 
 void handle_keyboard_interrupt(){
-  printf("Time %d: Handled KEYBOARD_INTERRUPT for pid %d \n", clock, R1);
+  printf("Time %d: Handled KEYBOARD_INTERRUPT for pid %d\n", clock, R1); fflush(stdout);
   update_interrupting_process();
 }
 /* This procedure is automatically called when the 
