@@ -158,15 +158,6 @@ void run_next_process(){
   }
 }
 
-void run_interrupting_process(){
-  if(current_pid != IDLE_PROCESS){
-    process_table[current_pid].state = READY;
-    process_table[current_pid].quantum_start_time = 0;
-    queue_ready_process(current_pid);
-  }
-  current_pid = R1;
-  run_process(R1);
-}
 
 /* These handlers are run upon the relevant interrupt  */
 
@@ -181,7 +172,8 @@ void handle_disk_write() {
   /* This is non-blocking */
   /* Process continues while data is being 
      written to the disk */
-  printf("Time %d: Process %d issues disk write request\n", clock, current_pid);
+  //printf("Time %d: Process %d issues disk write request\n", clock, current_pid);
+  disk_write_req(current_pid);
 }
 void handle_keyboard_read() {
   SAY("handling keyboad read\n");
@@ -247,14 +239,26 @@ void handle_clock_interrupt(){
   }
 }
 
+void update_interrupting_process(){
+    if(current_pid == IDLE_PROCESS){
+      current_pid = R1;
+      run_process(current_pid);
+    }
+    else{
+      process_table[R1].state = READY;
+      process_table[R1].quantum_start_time = 0;
+      queue_ready_process(R1);
+    }
+}
+
 void handle_disk_interrupt(){
-  printf("Time %d: Handled DISK_INTERRUPT for pid %d \n", clock, R1);
-  run_interrupting_process();
+  printf("Time %d: Handled DISK_INTERRUPT for pid %d \n", clock, R1); fflush(stdout);
+  update_interrupting_process();
 }
 
 void handle_keyboard_interrupt(){
   printf("Time %d: Handled KEYBOARD_INTERRUPT for pid %d \n", clock, R1);
-  run_interrupting_process();
+  update_interrupting_process();
 }
 /* This procedure is automatically called when the 
    (simulated) machine boots up */
