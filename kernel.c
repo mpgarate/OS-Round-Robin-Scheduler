@@ -147,6 +147,10 @@ void run_process(pid){
   printf("Time %d: Process %d runs\n",clock, current_pid);
 }
 
+void update_CPU_time_used(pid){
+  process_table[pid].CPU_time_used += (clock - process_table[pid].quantum_start_time);
+}
+
 /* Run the next process in the queue */
 void run_next_process(){
   current_pid = dequeue_ready_process();
@@ -158,16 +162,17 @@ void run_next_process(){
   }
 }
 
-
 /* These handlers are run upon the relevant interrupt  */
 
 void handle_disk_read() {
   SAY2("PID %d handling disk read of size: %d\n",R2,current_pid);
   disk_read_req(current_pid, R2);
+  update_CPU_time_used(current_pid);
   process_table[current_pid].state = BLOCKED;
   process_table[current_pid].quantum_start_time = 0;
   run_next_process();
 }
+
 void handle_disk_write() {
   /* This is non-blocking */
   /* Process continues while data is being 
@@ -175,19 +180,24 @@ void handle_disk_write() {
   //printf("Time %d: Process %d issues disk write request\n", clock, current_pid);
   disk_write_req(current_pid);
 }
+
 void handle_keyboard_read() {
   SAY("handling keyboad read\n");
   keyboard_read_req(current_pid);
+  update_CPU_time_used(current_pid);
   process_table[current_pid].state = BLOCKED;
   process_table[current_pid].quantum_start_time = 0;
   run_next_process();
 }
+
 void handle_fork_program() {
   //SAY("handling fork program\n");
   create_process_entry(R2);
 }
+
 void handle_end_program() {
   SAY("handling end program\n");
+  update_CPU_time_used(current_pid);
   printf("Time %d: Process %d exits. Total CPU time = %d\n", clock, current_pid, process_table[current_pid].CPU_time_used);
   process_table[current_pid].state = UNINITIALIZED;
   active_processes--;
@@ -221,6 +231,7 @@ void handle_trap(){
   }
 }
 
+
 void handle_clock_interrupt(){
   //SAY1("Time: %d - Handling clock interrupt\n", clock);
     CLOCK_TIME quantum_time_used = clock - process_table[current_pid].quantum_start_time;
@@ -231,9 +242,9 @@ void handle_clock_interrupt(){
   }
   if (quantum_time_used >= QUANTUM){
     SAY2("PID %d has run for %d. That's enough. \n",current_pid, quantum_time_used);
+    update_CPU_time_used(current_pid);
     process_table[current_pid].state = READY;
     process_table[current_pid].quantum_start_time = 0;
-    process_table[current_pid].CPU_time_used += quantum_time_used;
     queue_ready_process(current_pid);
     run_next_process();
   }
