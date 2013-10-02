@@ -262,7 +262,6 @@ void update_interrupting_process(){
   process_table[R1].state = READY;
   process_table[R1].quantum_start_time = 0;
   queue_ready_process(R1);
-  
 
   /* If the CPU is idle, we can run this interrupting
   process right away. Remove this if statement and
@@ -270,7 +269,6 @@ void update_interrupting_process(){
   if (current_pid == -1) { 
     run_next_process(); 
   }
-
 }
 
 void handle_disk_interrupt(){
