@@ -10,11 +10,12 @@
 #define DEBUG 0
 
 /* Macro to print debug statements and flush stdout */
-#define SAY(fmt)        SAY0(fmt)
-#define SAY0(fmt)         {if(DEBUG){printf(fmt); fflush(stdout);}}
-#define SAY1(fmt,parm1)     {if(DEBUG){printf(fmt,parm1); fflush(stdout);}}
-#define SAY2(fmt,parm1,parm2)   {if(DEBUG){printf(fmt,parm1,parm2); fflush(stdout);}}
-
+#ifdef DEBUG
+  #define SAY(fmt)        SAY0(fmt)
+  #define SAY0(fmt)         {if(DEBUG){printf(fmt); fflush(stdout);}}
+  #define SAY1(fmt,parm1)     {if(DEBUG){printf(fmt,parm1); fflush(stdout);}}
+  #define SAY2(fmt,parm1,parm2)   {if(DEBUG){printf(fmt,parm1,parm2); fflush(stdout);}}
+#endif
 /* You may use the definitions below, if you are so inclined, to
    define the process table entries. Feel free to use your own
    definitions, though. */
@@ -36,6 +37,8 @@ extern PROCESS_TABLE_ENTRY process_table[];
 #define QUANTUM 40
 
 PROCESS_TABLE_ENTRY process_table[MAX_NUMBER_OF_PROCESSES];
+
+/* Keep a count of active processes */
 int active_processes = 0;
 
 /* You may use this code for maintaining a queue of
@@ -75,9 +78,6 @@ void queue_ready_process(PID_type pid)
   }
 }
 
-
-
-
 //removes and returns PID from front of ready queue
 
 PID_type dequeue_ready_process()
@@ -98,7 +98,7 @@ PID_type dequeue_ready_process()
   }
 }
 
-/*** Printing functionality for debugging ***/
+/*** Print process entry and table for debugging ***/
 
 void print_process_entry(i){
   SAY1("--- %d       ",i); // PID
@@ -134,22 +134,24 @@ void print_process_table(){
   SAY("------------------- End Process Table Print ------------------\n");
 }
 
+/* Initialize a new process in process table */
 void create_process_entry(new_process_pid){
   printf("Time %d: Creating process entry for pid %d\n",clock,new_process_pid);
   process_table[new_process_pid].state = READY;
   process_table[new_process_pid].CPU_time_used = 0; 
-  process_table[new_process_pid].quantum_start_time = clock;
+  process_table[new_process_pid].quantum_start_time = 0;
   active_processes++;
   queue_ready_process(new_process_pid);
 }
 
-/* Update the process table for a running process */
+/* Update the process table to run a process */
 void run_process(pid){
   process_table[pid].state = RUNNING;
   process_table[pid].quantum_start_time = clock;
   printf("Time %d: Process %d runs\n",clock, current_pid);
 }
 
+/* Calculate and store the cpu time used */
 void update_CPU_time_used(pid){
   process_table[pid].CPU_time_used += (clock - process_table[pid].quantum_start_time);
 }
@@ -168,13 +170,14 @@ void run_next_process(){
   }
 }
 
-/* These handlers are run upon the relevant interrupt  */
-
+/* Block the current process */
 void block_current_process(){
   update_CPU_time_used(current_pid);
   process_table[current_pid].state = BLOCKED;
   process_table[current_pid].quantum_start_time = 0;
 }
+
+/* These handlers are run upon the relevant interrupt  */
 
 void handle_disk_read() {
   SAY2("PID %d handling disk read of size: %d\n",R2,current_pid);
@@ -236,9 +239,7 @@ void handle_trap(){
   }
 }
 
-
 void handle_clock_interrupt(){
-  //SAY1("Time: %d - Handling clock interrupt\n", clock);
     CLOCK_TIME quantum_time_used = clock - process_table[current_pid].quantum_start_time;
   /* Check if the current process has used up its QUANTUM */
     print_process_table();
@@ -256,18 +257,18 @@ void handle_clock_interrupt(){
   }
 }
 
+/* Set the interrupting process to READY and queue it */
 void update_interrupting_process(){
-    if(current_pid == IDLE_PROCESS){
-      /* current_pid = R1;
-      run_process(current_pid); */
+  process_table[R1].state = READY;
+  process_table[R1].quantum_start_time = 0;
+  queue_ready_process(R1);
 
-      queue_ready_process(R1);
-    }
-    else{
-      process_table[R1].state = READY;
-      process_table[R1].quantum_start_time = 0;
-      queue_ready_process(R1);
-    }
+  /* If the CPU is idle, we can run this interrupting
+  process right away. Remove this if statement and
+  block to match ben_system timing */
+  if (current_pid == -1) { 
+    run_next_process(); 
+  }
 }
 
 void handle_disk_interrupt(){
@@ -279,16 +280,12 @@ void handle_keyboard_interrupt(){
   printf("Time %d: Handled KEYBOARD_INTERRUPT for pid %d\n", clock, R1); fflush(stdout);
   update_interrupting_process();
 }
+
 /* This procedure is automatically called when the 
    (simulated) machine boots up */
 
 void initialize_kernel()
 {
-  // Put any initialization code you want here.
-  // Remember, the process 0 will automatically be
-  // executed after initialization (and current_pid
-  // will automatically be set to 0), 
-  // so the your process table should reflect that fact.
 
   /* Add the initial process to the table */
   process_table[0].state = RUNNING;

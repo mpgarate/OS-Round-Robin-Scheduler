@@ -1,0 +1,30 @@
+IN HANDLE_TRAP. Clock = 0, trap = 3
+Time 0: Creating process entry for pid 1
+IN HANDLE_TRAP. Clock = 0, trap = 3
+Time 0: Creating process entry for pid 2
+IN HANDLE_TRAP. Clock = 0, trap = 4
+Time 0: Process 0 exits. Total CPU time = 0
+Time 0: Process 1 runs
+Time 40: Process 2 runs
+Time 80: Process 1 runs
+Time 120: Process 2 runs
+Time 160: Process 1 runs
+IN HANDLE_TRAP. Clock = 180, trap = 1
+Time 180: Process 1 issues disk write request
+IN HANDLE_TRAP. Clock = 185, trap = 2
+Time 185: Process 1 issues keyboard read request
+Time 185: Process 2 runs
+IN HANDLE_TRAP. Clock = 205, trap = 0
+Time 205: Process 2 issues disk read request
+Time 205: Processor is idle
+Time 265: Handled DISK_INTERRUPT for pid 2
+Time 265: Process 2 runs
+Time 285: Handled KEYBOARD_INTERRUPT for pid 1
+Time 310: Process 1 runs
+Time 350: Process 2 runs
+IN HANDLE_TRAP. Clock = 365, trap = 4
+Time 365: Process 2 exits. Total CPU time = 160
+Time 365: Process 1 runs
+IN HANDLE_TRAP. Clock = 375, trap = 4
+Time 375: Process 1 exits. Total CPU time = 155
+-- No more processes to execute --

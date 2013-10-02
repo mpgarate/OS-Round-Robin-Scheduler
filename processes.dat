@@ -2,9 +2,11 @@
 0 fork 2
 1 run 100
 1 diskwrite
-1 run 10
+1 run 5
 1 keyboardread
 1 run 50
 2 run 100
 2 diskread 10
 2 run 60
+
+

@@ -113,5 +113,6 @@ extern CLOCK_TIME clock;  /* system clock in ms */
 
 typedef void (*FN_TYPE)();
 
+/* Array of function pointers */
 extern FN_TYPE INTERRUPT_TABLE[];
 
